@@ -1,0 +1,17 @@
+{
+  "name": "cobalt-spotify-downloader",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.22.2",
+    "multer": "^2.2.0",
+    "png-to-ico": "^3.0.1",
+    "sharp": "^0.35.3",
+    "spotify-url-info": "^3.3.0",
+    "string-similarity": "^4.0.4",
+    "yt-dlp-wrap": "^2.3.12"
+  }
+}
