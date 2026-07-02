@@ -1,13 +1,22 @@
 let statusTimeout;
 
 document.addEventListener('DOMContentLoaded', () => {
-    const select = document.getElementById('audioFormat');
-    const savedFormat = localStorage.getItem('audioFormat');
-    if (savedFormat) {
-        select.value = savedFormat;
+    const audioSelect = document.getElementById('audioFormat');
+    const savedAudio = localStorage.getItem('audioFormat');
+    if (savedAudio) {
+        audioSelect.value = savedAudio;
     }
-    select.addEventListener('change', (e) => {
+    audioSelect.addEventListener('change', (e) => {
         localStorage.setItem('audioFormat', e.target.value);
+    });
+
+    const imageSelect = document.getElementById('imageFormat');
+    const savedImage = localStorage.getItem('imageFormat');
+    if (savedImage) {
+        imageSelect.value = savedImage;
+    }
+    imageSelect.addEventListener('change', (e) => {
+        localStorage.setItem('imageFormat', e.target.value);
     });
 
     const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
@@ -188,8 +197,15 @@ async function processImageConvert() {
     const format = document.getElementById('imageFormat').value;
     const btn = document.getElementById('convertBtn');
 
+    const turnstileResponse = turnstile.getResponse();
+
     if (!input.files || input.files.length === 0) {
         showStatus('please select an image', 'error');
+        return;
+    }
+
+    if (!turnstileResponse) {
+        showStatus('please complete the security check', 'error');
         return;
     }
 
@@ -199,6 +215,7 @@ async function processImageConvert() {
     const formData = new FormData();
     formData.append('image', input.files[0]);
     formData.append('format', format);
+    formData.append('token', turnstileResponse);
 
     try {
         const response = await fetch('/api/convert-image', {
@@ -241,6 +258,8 @@ async function processImageConvert() {
         showStatus(err.message, 'error');
     } finally {
         btn.disabled = false;
+        turnstile.reset();
+        resetBadge();
     }
 }
 
