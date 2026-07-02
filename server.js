@@ -3,13 +3,19 @@ const { execFile } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-const fetch = require('node-fetch');
 const stringSimilarity = require('string-similarity');
 const multer = require('multer');
 const sharp = require('sharp');
 
 let pngToIco = require('png-to-ico');
 if (pngToIco.default) pngToIco = pngToIco.default;
+
+let fetch;
+if (globalThis.fetch) {
+    fetch = globalThis.fetch;
+} else {
+    fetch = require('node-fetch');
+}
 
 const { getPreview } = require('spotify-url-info')(fetch);
 
@@ -179,6 +185,31 @@ app.post('/api/convert-image', upload.single('image'), async (req, res) => {
             return res.status(400).json({ error: 'error: no image uploaded' });
         }
 
+        const token = req.body.token;
+        if (!token) {
+            return res.status(400).json({ error: 'error: missing captcha verification token' });
+        }
+
+        try {
+            const verifyUrl = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+            const captchaResponse = await fetch(verifyUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    secret: TURNSTILE_SECRET_KEY,
+                    response: token,
+                    remoteip: req.ip
+                })
+            });
+            const captchaResult = await captchaResponse.json();
+            if (!captchaResult.success) {
+                return res.status(403).json({ error: 'captcha verification failed: bot detected' });
+            }
+        } catch (captchaError) {
+            console.error('Turnstile verification error:', captchaError);
+            return res.status(500).json({ error: 'security verification service error' });
+        }
+
         const requestedFormat = typeof req.body.format === 'string' ? req.body.format.toLowerCase() : 'png';
         const allowedFormats = ['png', 'jpg', 'webp', 'ico'];
         const outputFormat = allowedFormats.includes(requestedFormat) ? requestedFormat : 'png';
@@ -188,7 +219,6 @@ app.post('/api/convert-image', upload.single('image'), async (req, res) => {
         let filename;
 
         if (outputFormat === 'ico') {
-            // Сначала создаём квадратное PNG (512x512) с прозрачным фоном
             const squarePng = await sharp(req.file.buffer)
                 .resize(512, 512, {
                     fit: 'contain',
